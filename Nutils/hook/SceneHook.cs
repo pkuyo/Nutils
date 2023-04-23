@@ -111,7 +111,7 @@ namespace Nutils.hook
         static private void MenuScene_BuildScene(On.Menu.MenuScene.orig_BuildScene orig, MenuScene self)
         {
             orig(self);
-            if (sceneArgs.ContainsKey(self.sceneID))
+            if (self.sceneID != null && sceneArgs.ContainsKey(self.sceneID))
                 sceneArgs[self.sceneID](self);
         }
 
@@ -127,33 +127,48 @@ namespace Nutils.hook
         static private void SlideShow_ctor(On.Menu.SlideShow.orig_ctor orig, SlideShow self, ProcessManager manager, SlideShow.SlideShowID slideShowID)
         {
             //处理音乐部分
-            foreach (var arg in slideIntroArgs)
+            try
             {
-                if (arg.id == slideShowID)
+                foreach (var arg in slideIntroArgs)
                 {
-                    self.waitForMusic = arg.music;
-                    self.stall = true;
-                    manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
-                    break;
+                    if (arg.id == slideShowID)
+                    {
+                        self.waitForMusic = arg.music;
+                        self.stall = true;
+                        manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
+                        break;
+                    }
                 }
+            }
+            catch
+            {
+                Debug.LogError("[Nutils] Yeah slide show has some bugs, but i don't want to fix");
             }
 
             orig(self, manager, slideShowID);
-            foreach (var arg in slideIntroArgs)
+            try
             {
-                if (arg.id == slideShowID)
+                self.processAfterSlideShow = ProcessManager.ProcessID.Game;
+                foreach (var arg in slideIntroArgs)
                 {
-                    arg.buildSlideAction(self);
-                    self.processAfterSlideShow = ProcessManager.ProcessID.Game;
-
-                    self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
-                    for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
+                    if (arg.id == slideShowID)
                     {
-                        self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
-                        self.preloadedScenes[num10].Hide();
+                        if (arg.buildSlideAction == null)
+                            return;
+                        arg.buildSlideAction(self);
+                        self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
+                        for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
+                        {
+                            self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
+                            self.preloadedScenes[num10].Hide();
+                        }
+                        break;
                     }
-                    break;
                 }
+            }
+            catch
+            {
+                Debug.LogError("[Nutils] Yeah slide show has some bugs, but i don't want to fix");
             }
             self.NextScene();
         }

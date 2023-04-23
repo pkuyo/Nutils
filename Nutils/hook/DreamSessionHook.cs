@@ -299,7 +299,6 @@ namespace Nutils.hook
         public void Base_Update()
         {
             if (EndSession) return;
-
             if (!isRealized && game.cameras[0].room != null && game.cameras[0].room.shortCutsReady)
             {
                 PostFirstRoomRealized();
@@ -381,6 +380,11 @@ namespace Nutils.hook
         {
             if (!isLoaded)
             {
+                IL.RainWorldGame.ctor += RainWorldGame_ctorIL;
+                IL.World.ctor += World_ctorIL;
+                IL.RegionGate.ctor += RegionGate_ctorIL;
+                IL.RainWorldGame.Update += RainWorldGame_UpdateIL;
+
                 On.RainWorldGame.ExitGame += RainWorldGame_ExitGame;
                 On.RainWorldGame.Win += RainWorldGame_Win;
                 On.RainWorldGame.Update += RainWorldGame_Update;
@@ -389,15 +393,27 @@ namespace Nutils.hook
                 On.HUD.HUD.InitSinglePlayerHud += HUD_InitSinglePlayerHud;
                 On.MultiplayerUnlocks.IsLevelUnlocked += MultiplayerUnlocks_IsLevelUnlocked;
 
-                IL.RainWorldGame.ctor += RainWorldGame_ctorIL;
-                IL.World.ctor += World_ctorIL;
-                IL.RegionGate.ctor += RegionGate_ctorIL;
-
                 Hook slugcatStateHook = new Hook(
                     typeof(Player).GetProperty("slugcatStats", BindingFlags.Instance | BindingFlags.Public).GetGetMethod(),
                     typeof(DreamSessionHook).GetMethod("Player_slugcatStats_get", BindingFlags.Static | BindingFlags.Public));
-
                 isLoaded = true;
+            }
+        }
+
+        private static void RainWorldGame_UpdateIL(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+            if(c.TryGotoNext(MoveType.After, instr => instr.MatchCallOrCallvirt<AbstractSpaceVisualizer>("ChangeRoom"),
+                                             instr => instr.MatchLdarg(0), 
+                                             instr => instr.MatchCallOrCallvirt<RainWorldGame>("get_IsStorySession")))
+            {
+                c.Emit(OpCodes.Ldarg_0);
+                c.EmitDelegate<Func<bool, RainWorldGame,bool>>((a, game) =>
+                {
+                    if (game.session is DreamGameSession)
+                        return true;
+                    return a;
+                }); ;
             }
         }
 
@@ -455,7 +471,7 @@ namespace Nutils.hook
         {
             foreach (var data in dreams)
             {
-                if (data.IsSingleWorld && data.HiddenRoomInArena && data.FirstRoom == levelName)
+                if (data.IsSingleWorld && data.HiddenRoomInArena && data.FirstRoom.ToLower() == levelName.ToLower())
                     return false;
             }
             return orig(self, levelName);
@@ -464,7 +480,9 @@ namespace Nutils.hook
         static private void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
         {
             if (self.session is DreamGameSession)
+            {
                 (self.session as DreamGameSession).Base_Update();
+            }
             orig(self);
         }
 
