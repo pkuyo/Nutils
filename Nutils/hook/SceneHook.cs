@@ -108,7 +108,7 @@ namespace Nutils.hook
             }
         }
 
-        static private void MenuScene_BuildScene(On.Menu.MenuScene.orig_BuildScene orig, MenuScene self)
+        private static void MenuScene_BuildScene(On.Menu.MenuScene.orig_BuildScene orig, MenuScene self)
         {
             orig(self);
             if (self.sceneID != null && sceneArgs.ContainsKey(self.sceneID))
@@ -139,6 +139,16 @@ namespace Nutils.hook
                         break;
                     }
                 }
+                foreach (var arg in slideOutroArgs)
+                {
+                    if (arg.id == slideShowID)
+                    {
+                        self.waitForMusic = arg.music;
+                        self.stall = true;
+                        manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
+                        break;
+                    }
+                }
             }
             catch
             {
@@ -150,6 +160,22 @@ namespace Nutils.hook
             {
                 self.processAfterSlideShow = ProcessManager.ProcessID.Game;
                 foreach (var arg in slideIntroArgs)
+                {
+                    if (arg.id == slideShowID)
+                    {
+                        if (arg.buildSlideAction == null)
+                            return;
+                        arg.buildSlideAction(self);
+                        self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
+                        for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
+                        {
+                            self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
+                            self.preloadedScenes[num10].Hide();
+                        }
+                        break;
+                    }
+                }
+                foreach (var arg in slideOutroArgs)
                 {
                     if (arg.id == slideShowID)
                     {

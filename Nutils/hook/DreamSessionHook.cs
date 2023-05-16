@@ -134,26 +134,26 @@ namespace Nutils.hook
         /// <summary>
         /// 标志结束session，会在QuitGame被设置为true
         /// </summary>
-        public bool EndSession;
+        public bool EndSession { get; set; }
 
         /// <summary>
         /// session运行时间
         /// 初始化后SessionCounter会每帧+1，可用作梦中计时器
         /// </summary>
-        protected int SessionCounter;
+        protected int SessionCounter { get; set; }
 
         /// <summary>
         /// 在初始化结束后会每帧刷新
         /// SessionCounter会每帧+1，可用作梦中计时器
         /// </summary>
-        virtual public void Update()
+        public virtual void Update()
         {
         }
 
         /// <summary>
         /// 在世界加载后调用，放置巢穴(den)内的生物或offscreen的生物用
         /// </summary>
-        virtual public void PostWorldLoaded()
+        public virtual void PostWorldLoaded()
         {
         }
 
@@ -161,7 +161,7 @@ namespace Nutils.hook
         /// 在初始房间实例化后调用，一般可以放置shortcut内生成的生物。
         /// 玩家放置也在这个函数内进行
         /// </summary>
-        virtual public void PostFirstRoomRealized()
+        public virtual void PostFirstRoomRealized()
         {
 
         }
@@ -338,13 +338,13 @@ namespace Nutils.hook
         #endregion
     }
 
-    static public class DreamSessionHook
+    public static class DreamSessionHook
     {
         /// <summary>
         /// 注册梦到游戏
         /// </summary>
         /// <param name="dream">梦的参数类DreamNutils</param>
-        static public void RegisterDream(DreamNutils dream)
+        public static void RegisterDream(DreamNutils dream)
         {
             OnModInit();
             dreams.Add(dream);
@@ -366,11 +366,11 @@ namespace Nutils.hook
 
 
 
-        static public void Log(string message)
+        public static void Log(string message)
         {
             Debug.Log("[DreamNutils] " + message);
         }
-        static public void LogException(Exception e)
+        public static void LogException(Exception e)
         {
             Debug.LogError("[DreamNutils] ERROR!");
             Debug.LogException(e);
@@ -417,7 +417,7 @@ namespace Nutils.hook
             }
         }
 
-        static private void HUD_InitSinglePlayerHud(On.HUD.HUD.orig_InitSinglePlayerHud orig, HUD.HUD self, RoomCamera cam)
+        private static void HUD_InitSinglePlayerHud(On.HUD.HUD.orig_InitSinglePlayerHud orig, HUD.HUD self, RoomCamera cam)
         {
             if (cam.game.session is DreamGameSession)
             {
@@ -467,7 +467,7 @@ namespace Nutils.hook
             orig(self, cam);
         }
 
-        static private bool MultiplayerUnlocks_IsLevelUnlocked(On.MultiplayerUnlocks.orig_IsLevelUnlocked orig, MultiplayerUnlocks self, string levelName)
+        private static bool MultiplayerUnlocks_IsLevelUnlocked(On.MultiplayerUnlocks.orig_IsLevelUnlocked orig, MultiplayerUnlocks self, string levelName)
         {
             foreach (var data in dreams)
             {
@@ -477,21 +477,21 @@ namespace Nutils.hook
             return orig(self, levelName);
         }
 
-        static private void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
+        private static void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
         {
-            if (self.session is DreamGameSession)
+            if (self.session is DreamGameSession session)
             {
-                (self.session as DreamGameSession).Base_Update();
+                session.Base_Update();
             }
             orig(self);
         }
 
-        static private void OverWorld_LoadFirstWorld(On.OverWorld.orig_LoadFirstWorld orig, OverWorld self)
+        private static void OverWorld_LoadFirstWorld(On.OverWorld.orig_LoadFirstWorld orig, OverWorld self)
         {
-            if (self.game.session is DreamGameSession)
+            if (self.game.session is DreamGameSession session)
             {
-                var text = self.FIRSTROOM = self.game.startingRoom = (self.game.session as DreamGameSession).owner.FirstRoom;
-                if (!(self.game.session as DreamGameSession).owner.IsSingleWorld)
+                var text = self.FIRSTROOM = self.game.startingRoom = session.owner.FirstRoom;
+                if (!session.owner.IsSingleWorld)
                     self.LoadWorld(text.Split('_')[0].ToUpper(), self.game.session.characterStats.name, (self.game.session as DreamGameSession).owner.IsSingleWorld);
                 else
                     self.LoadWorld(self.game.startingRoom, self.game.session.characterStats.name, (self.game.session as DreamGameSession).owner.IsSingleWorld);
@@ -501,7 +501,7 @@ namespace Nutils.hook
             orig(self);
         }
 
-        static private void RegionGate_ctorIL(ILContext il)
+        private static void RegionGate_ctorIL(ILContext il)
         {
             ILCursor c = new ILCursor(il);
             try
@@ -513,10 +513,10 @@ namespace Nutils.hook
                     var label = c.DefineLabel();
                     c.EmitDelegate<Func<RegionGate, bool>>((gate) =>
                     {
-                        if (gate is WaterGate)
-                            (gate as WaterGate).waterLeft = 1f;
-                        else if (gate is ElectricGate)
-                            (gate as ElectricGate).batteryLeft = 1f;
+                        if (gate is WaterGate waterGate)
+                            waterGate.waterLeft = 1f;
+                        else if (gate is ElectricGate electricGate)
+                            electricGate.batteryLeft = 1f;
                         return gate.room.world.game.session is DreamGameSession;
                     });
                     c.Emit(OpCodes.Brtrue_S, label);
@@ -536,7 +536,7 @@ namespace Nutils.hook
 
         }
 
-        static private void World_ctorIL(ILContext il)
+        private static void World_ctorIL(ILContext il)
         {
             try
             {
@@ -547,10 +547,7 @@ namespace Nutils.hook
 
                     var notArena = c.DefineLabel();
                     var arena = c.DefineLabel();
-                    c.EmitDelegate<Func<RainWorldGame, bool>>((game) =>
-                    {
-                        return game.IsArenaSession;
-                    });
+                    c.EmitDelegate<Func<RainWorldGame, bool>>((game) => game.IsArenaSession);
                     c.Emit(OpCodes.Brfalse_S, notArena);
 
                     c.Emit(OpCodes.Ldarg_1);
@@ -575,17 +572,17 @@ namespace Nutils.hook
             }
         }
 
-        static private void RainWorldGame_ExitGame(On.RainWorldGame.orig_ExitGame orig, RainWorldGame self, bool asDeath, bool asQuit)
+        private static void RainWorldGame_ExitGame(On.RainWorldGame.orig_ExitGame orig, RainWorldGame self, bool asDeath, bool asQuit)
         {
-            if (self.session is DreamGameSession)
+            if (self.session is DreamGameSession session)
             {
-                (self.session as DreamGameSession).EndSession = true;
-                (self.session as DreamGameSession).owner.ExitDream_Base(self, asDeath, asQuit, ma);
+                session.EndSession = true;
+                session.owner.ExitDream_Base(self, asDeath, asQuit, ma);
                 return;
             }
             orig(self, asDeath, asQuit);
         }
-        static private void ProcessManager_PreSwitchMainProcess(On.ProcessManager.orig_PreSwitchMainProcess orig, ProcessManager self, ProcessManager.ProcessID ID)
+        private static void ProcessManager_PreSwitchMainProcess(On.ProcessManager.orig_PreSwitchMainProcess orig, ProcessManager self, ProcessManager.ProcessID ID)
         {
 
             if (self.oldProcess is RainWorldGame && self.currentMainLoop is RainWorldGame && (self.currentMainLoop as RainWorldGame).session is DreamGameSession)
@@ -604,7 +601,7 @@ namespace Nutils.hook
                 {
                     foreach (var camera in (game as RainWorldGame).cameras)
                     {
-                        if (camera.hud != null && camera.hud.jollyMeter != null)
+                        if (camera.hud?.jollyMeter != null)
                         {
                             camera.hud.parts.Remove(camera.hud.jollyMeter);
                             camera.hud.jollyMeter = null;
@@ -615,7 +612,7 @@ namespace Nutils.hook
             orig(self, ID);
         }
 
-        static private void RainWorldGame_ctorIL(ILContext il)
+        private static void RainWorldGame_ctorIL(ILContext il)
         {
             ILCursor c = new ILCursor(il);
             if (c.TryGotoNext(MoveType.Before, i => i.MatchNewobj<OverWorld>(),
@@ -624,11 +621,11 @@ namespace Nutils.hook
                 c.Emit(OpCodes.Ldarg_0);
                 c.EmitDelegate<Action<RainWorldGame>>((self) =>
                 {
-                    if (self.manager.oldProcess is RainWorldGame)
+                    if (self.manager.oldProcess is RainWorldGame game)
                     {
                         if (activeDream != null)
                         {
-                            self.session = activeDream.GetSession(self, (self.manager.oldProcess as RainWorldGame).session.characterStats.name);
+                            self.session = activeDream.GetSession(self, game.session.characterStats.name);
                             activeDream = null;
                         }
                     }
