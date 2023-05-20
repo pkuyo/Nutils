@@ -87,7 +87,7 @@ namespace Nutils.hook
         }
 
 
-        static private void RainWorldGame_ExitToVoidSeaSlideShowIL(ILContext il)
+        private static void RainWorldGame_ExitToVoidSeaSlideShowIL(ILContext il)
         {
             ILCursor c = new ILCursor(il);
             if(c.TryGotoNext(MoveType.After, i => i.MatchLdfld<MainLoopProcess>("manager"),
@@ -116,7 +116,7 @@ namespace Nutils.hook
         }
 
 
-        static private void SlideShow_NextScene(On.Menu.SlideShow.orig_NextScene orig, SlideShow self)
+        private static void SlideShow_NextScene(On.Menu.SlideShow.orig_NextScene orig, SlideShow self)
         {
             if (self.preloadedScenes.Length == 0)
                 return;
@@ -124,7 +124,7 @@ namespace Nutils.hook
         }
 
 
-        static private void SlideShow_ctor(On.Menu.SlideShow.orig_ctor orig, SlideShow self, ProcessManager manager, SlideShow.SlideShowID slideShowID)
+        private static void SlideShow_ctor(On.Menu.SlideShow.orig_ctor orig, SlideShow self, ProcessManager manager, SlideShow.SlideShowID slideShowID)
         {
             //处理音乐部分
             try
@@ -199,7 +199,7 @@ namespace Nutils.hook
             self.NextScene();
         }
 
-        static private void SlugcatSelectMenu_StartGameIL(ILContext il)
+        private static void SlugcatSelectMenu_StartGameIL(ILContext il)
         {
             ILCursor c = new ILCursor(il);
             if (c.TryGotoNext(MoveType.After,
