@@ -78,8 +78,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="hook\CampaignHook.cs" />
+    <Compile Include="hook\CustomEdibleHook.cs" />
     <Compile Include="hook\CustomTurtorial.cs" />
+    <Compile Include="hook\DeathSaveDataHook.cs" />
     <Compile Include="hook\DreamSessionHook.cs" />
+    <Compile Include="hook\MiscSaveDataHook.cs" />
     <Compile Include="hook\PlayerBaseAbility.cs" />
     <Compile Include="hook\SceneHook.cs" />
     <Compile Include="Plugin.cs" />

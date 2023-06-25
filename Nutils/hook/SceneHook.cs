@@ -127,75 +127,65 @@ namespace Nutils.hook
         private static void SlideShow_ctor(On.Menu.SlideShow.orig_ctor orig, SlideShow self, ProcessManager manager, SlideShow.SlideShowID slideShowID)
         {
             //处理音乐部分
-            try
+
+            foreach (var arg in slideIntroArgs)
             {
-                foreach (var arg in slideIntroArgs)
+                if (arg.id == slideShowID)
                 {
-                    if (arg.id == slideShowID)
-                    {
-                        self.waitForMusic = arg.music;
-                        self.stall = true;
-                        manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
-                        break;
-                    }
-                }
-                foreach (var arg in slideOutroArgs)
-                {
-                    if (arg.id == slideShowID)
-                    {
-                        self.waitForMusic = arg.music;
-                        self.stall = true;
-                        manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
-                        break;
-                    }
+                    self.waitForMusic = arg.music;
+                    self.stall = true;
+                    manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
+                    break;
                 }
             }
-            catch
+            foreach (var arg in slideOutroArgs)
             {
-                Debug.LogError("[Nutils] Yeah slide show has some bugs, but i don't want to fix");
+                if (arg.id == slideShowID)
+                {
+                    self.waitForMusic = arg.music;
+                    self.stall = true;
+                    manager.musicPlayer.MenuRequestsSong(self.waitForMusic, 1.5f, 10f);
+                    break;
+                }
             }
 
+
             orig(self, manager, slideShowID);
-            try
+
+            self.processAfterSlideShow = ProcessManager.ProcessID.Game;
+            foreach (var arg in slideIntroArgs)
             {
-                self.processAfterSlideShow = ProcessManager.ProcessID.Game;
-                foreach (var arg in slideIntroArgs)
+                if (arg.id == slideShowID)
                 {
-                    if (arg.id == slideShowID)
+                    if (arg.buildSlideAction == null)
+                        return;
+                    arg.buildSlideAction(self);
+                    self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
+                    for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
                     {
-                        if (arg.buildSlideAction == null)
-                            return;
-                        arg.buildSlideAction(self);
-                        self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
-                        for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
-                        {
-                            self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
-                            self.preloadedScenes[num10].Hide();
-                        }
-                        break;
+                        self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
+                        self.preloadedScenes[num10].Hide();
                     }
-                }
-                foreach (var arg in slideOutroArgs)
-                {
-                    if (arg.id == slideShowID)
-                    {
-                        if (arg.buildSlideAction == null)
-                            return;
-                        arg.buildSlideAction(self);
-                        self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
-                        for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
-                        {
-                            self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
-                            self.preloadedScenes[num10].Hide();
-                        }
-                        break;
-                    }
+                    break;
                 }
             }
-            catch
+            foreach (var arg in slideOutroArgs)
             {
-                Debug.LogError("[Nutils] Yeah slide show has some bugs, but i don't want to fix");
+                if (arg.id == slideShowID)
+                {
+                    if (arg.buildSlideAction == null)
+                        return;
+                    arg.buildSlideAction(self);
+                    self.preloadedScenes = new SlideShowMenuScene[self.playList.Count];
+                    for (int num10 = 0; num10 < self.preloadedScenes.Length; num10++)
+                    {
+                        self.preloadedScenes[num10] = new SlideShowMenuScene(self, self.pages[0], self.playList[num10].sceneID);
+                        self.preloadedScenes[num10].Hide();
+                    }
+                    break;
+                }
             }
+
             self.NextScene();
         }
 

@@ -476,9 +476,11 @@ namespace Nutils.hook
         private static void WorldLoader_CreatingWorld(On.WorldLoader.orig_CreatingWorld orig, WorldLoader self)
         {
             orig(self);
-            if(self.game.session is DreamGameSession dream && dream.owner.AllowDefaultSpawn)
+            if (self.game != null && self.game.session is DreamGameSession dream && dream.owner.AllowDefaultSpawn)
+            {
                 self.GeneratePopulation();
-            Debug.Log("[Nutils] End Generate population");
+                Debug.Log("[Nutils] End Generate population");
+            }
         }
 
         private static void GeneratePopulation(this WorldLoader self)
@@ -594,7 +596,7 @@ namespace Nutils.hook
         private static void WorldLoader_ctor_RainWorldGame_Name_bool_string_Region_SetupValues(On.WorldLoader.orig_ctor_RainWorldGame_Name_bool_string_Region_SetupValues orig, WorldLoader self, RainWorldGame game, SlugcatStats.Name playerCharacter, bool singleRoomWorld, string worldName, Region region, RainWorldGame.SetupValues setupValues)
         {
 
-            if (game.session is DreamGameSession dream1 && dream1.owner.OverrideDefaultSpawn)
+            if (game!=null && game.session is DreamGameSession dream1 && dream1.owner.OverrideDefaultSpawn)
                 orig(self, game, dream1.owner.DefaultSpawnName, singleRoomWorld, worldName, region, setupValues);
             orig(self, game, playerCharacter, singleRoomWorld, worldName, region, setupValues);
         }
@@ -612,34 +614,6 @@ namespace Nutils.hook
                 self.AddPart(new KarmaMeter(self, self.fContainers[1], new IntVector2((self.owner as Player).Karma, (self.owner as Player).KarmaCap), (self.owner as Player).KarmaIsReinforced));
                 self.AddPart(new FoodMeter(self, (self.owner as Player).slugcatStats.maxFood, (self.owner as Player).slugcatStats.foodToHibernate, null, 0));
                 self.AddPart(new RainMeter(self, self.fContainers[1]));
-                if (ModManager.MSC)
-                {
-                    self.AddPart(new AmmoMeter(self, null, self.fContainers[1]));
-                    self.AddPart(new HypothermiaMeter(self, self.fContainers[1]));
-                    if ((self.owner as Player).SlugCatClass == MoreSlugcatsEnums.SlugcatStatsName.Gourmand)
-                    {
-                        self.AddPart(new GourmandMeter(self, self.fContainers[1]));
-                    }
-                }
-                if (ModManager.MMF && MMF.cfgBreathTimeVisualIndicator.Value)
-                {
-                    self.AddPart(new BreathMeter(self, self.fContainers[1]));
-                    if (ModManager.CoopAvailable && cam.room.game.session != null)
-                    {
-                        for (int i = 1; i < cam.room.game.session.Players.Count; i++)
-                        {
-                            self.AddPart(new BreathMeter(self, self.fContainers[1], cam.room.game.session.Players[i]));
-                        }
-                    }
-                }
-                if (ModManager.MMF && MMF.cfgThreatMusicPulse.Value)
-                {
-                    self.AddPart(new ThreatPulser(self, self.fContainers[1]));
-                }
-                if (ModManager.MMF && MMF.cfgSpeedrunTimer.Value)
-                {
-                    self.AddPart(new SpeedRunTimer(self, null, self.fContainers[1]));
-                }
                 if (cam.room.abstractRoom.shelter)
                 {
                     self.karmaMeter.fade = 1f;

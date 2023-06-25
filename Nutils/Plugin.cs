@@ -7,6 +7,7 @@ using System.Linq;
 using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 #pragma warning disable CS0618
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -23,17 +24,44 @@ namespace Nutils
 
         }
 
+        private bool isLoaded = false;
+
+        public static void Log(string m)
+        {
+            Debug.Log("[Nutils] " + m);
+        }
+
+        public static void Log(string f, params object[] args)
+        {
+            Debug.Log("[Nutils] " + string.Format(f, args));
+        }
+
         private void RainWorld_OnModsInit(On.RainWorld.orig_OnModsInit orig, RainWorld self)
         {
-            orig(self);
             try
             {
-                PlayerBaseHook.OnModsInit();
-                Logger.LogInfo("Nutils Inited");
+                orig(self);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e);
+                Debug.LogException(e);
+            }
+
+            try
+            {
+                if (!isLoaded)
+                {
+                    PlayerBaseHook.OnModsInit();
+                    Logger.LogInfo("Nutils Inited");
+                    isLoaded = true;
+                }
+
             }
             catch(Exception e)
             {
                 Logger.LogError(e);
+                Debug.LogException(e);
             }
         }
     }
