@@ -14,10 +14,9 @@ using UnityEngine;
 #pragma warning restore CS0618
 namespace Nutils
 {
-    [BepInPlugin("nutils", "Nutils", "1.0.0")]
+    [BepInPlugin("nutils", "Nutils", "1.1.5")]
     public class Plugin : BaseUnityPlugin
     {
-        InitializationScreen.InitializationStep currentStep = InitializationScreen.InitializationStep.WRAP_UP;
         public void OnEnable()
         {
             On.RainWorld.OnModsInit += RainWorld_OnModsInit;
@@ -53,6 +52,8 @@ namespace Nutils
                 if (!isLoaded)
                 {
                     PlayerBaseHook.OnModsInit();
+                    DeathSaveDataHook.OnModsInit();
+                    MiscSaveDataHook.OnModsInit();
                     Logger.LogInfo("Nutils Inited");
                     isLoaded = true;
                 }

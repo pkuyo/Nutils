@@ -50,7 +50,7 @@ namespace Nutils.hook
             }
             if (c.TryGotoNext(MoveType.After,
                 i => i.MatchLdcI4(34),
-                i => i.MatchStloc(26)))
+                i => i.MatchStloc(27)))
             {
                 c.Emit(OpCodes.Ldarg_0);
                 c.EmitDelegate<Func<Player, int>>((self) =>

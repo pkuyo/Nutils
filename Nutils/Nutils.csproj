@@ -34,6 +34,9 @@
     <Reference Include="0Harmony">
       <HintPath>..\..\..\SteamLibrary\steamapps\common\Rain World\BepInEx\core\0Harmony.dll</HintPath>
     </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>..\..\OpKeyBinderEx\OpKeyBinderEx\bin\Debug\net48\Assembly-CSharp-firstpass.dll</HintPath>
+    </Reference>
     <Reference Include="BepInEx">
       <HintPath>..\..\PaletteCreator\link\BepInEx.dll</HintPath>
     </Reference>
@@ -58,6 +61,12 @@
     <Reference Include="PUBLIC-Assembly-CSharp">
       <HintPath>..\..\..\SteamLibrary\steamapps\common\Rain World\BepInEx\utils\PUBLIC-Assembly-CSharp.dll</HintPath>
     </Reference>
+    <Reference Include="Rewired_Core">
+      <HintPath>..\..\OpKeyBinderEx\OpKeyBinderEx\bin\Debug\net48\Rewired_Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Rewired_Windows">
+      <HintPath>..\..\OpKeyBinderEx\OpKeyBinderEx\bin\Debug\net48\Rewired_Windows.dll</HintPath>
+    </Reference>
     <Reference Include="SlugBase">
       <HintPath>..\..\TheWanderer\SlugBase.dll</HintPath>
     </Reference>
@@ -75,6 +84,10 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\SteamLibrary\steamapps\common\Rain World\RainWorld_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\OpKeyBinderEx\OpKeyBinderEx\bin\Debug\net48\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="hook\CampaignHook.cs" />
@@ -85,8 +98,10 @@
     <Compile Include="hook\MiscSaveDataHook.cs" />
     <Compile Include="hook\PlayerBaseAbility.cs" />
     <Compile Include="hook\SceneHook.cs" />
+    <Compile Include="MixedUI\OpKeyBinderEx.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

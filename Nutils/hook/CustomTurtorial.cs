@@ -28,18 +28,19 @@ namespace Nutils.hook
             if (room.game.session.Players[0].realizedCreature != null && room.game.cameras[0].hud != null &&
                 room.game.cameras[0].hud.textPrompt != null && room.game.cameras[0].hud.textPrompt.messages.Count < 1)
             {
-                if (index < messageList.Length)
+                for (int index = 0;index < messageList.Length;index++)
                 {
                     var texts = messageList[index].text.Split('/');
                     string transTest = "";
                     foreach (var text in texts)
                         transTest += Custom.rainWorld.inGameTranslator.Translate(text);
 
+
                     room.game.cameras[0].hud.textPrompt.AddMessage(transTest, messageList[index].wait, messageList[index].time, false, ModManager.MMF);
-                    index++;
+                   
                 }
-                else
-                    slatedForDeletetion = true;
+           
+                slatedForDeletetion = true;
             }
         }
         public class Message
@@ -58,7 +59,7 @@ namespace Nutils.hook
                 return new Message(s, w, t);
             }
         }
-        int index = 0;
+
         readonly Message[] messageList;
     }
 }

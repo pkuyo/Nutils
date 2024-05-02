@@ -15,12 +15,11 @@ namespace Nutils.hook
 {
     public static class DeathSaveDataHook
     {
-        private static void OnModsInit()
+        public static void OnModsInit()
         {
             if (!isLoaded)
             {
-                dataTypes = new Dictionary<string, Type>();
-                saveDatas = new ConditionalWeakTable<DeathPersistentSaveData, Dictionary<string, object>>();
+         
                 On.DeathPersistentSaveData.FromString += DeathPersistentSaveData_FromString;
                 On.DeathPersistentSaveData.SaveToString += DeathPersistentSaveData_SaveToString;
                 On.DeathPersistentSaveData.ctor += DeathPersistentSaveData_ctor;
@@ -31,40 +30,39 @@ namespace Nutils.hook
         private static void DeathPersistentSaveData_ctor(On.DeathPersistentSaveData.orig_ctor orig, DeathPersistentSaveData self, SlugcatStats.Name slugcat)
         {
             orig(self,slugcat);
-            if (!saveDatas.TryGetValue(self, out _))
-            {
-                var customSave = new Dictionary<string, object>();
-                saveDatas.Add(self, customSave);
-                foreach (var data in dataTypes)
-                {
-                    customSave.Add(data.Key, Activator.CreateInstance(dataTypes[data.Key]));
-                }
-            }
+
+            var customSave = new Dictionary<string, (string origValue, object newValue)>();
+            saveDatas.Add(self, customSave);
         }
 
         public static void Register<T>(string name) where T : class, new()
         {
-            OnModsInit();
+    
             dataTypes.Add(name, typeof(T));
         }
 
         public static void Register(Type type,string name)
         {
-            OnModsInit();
             dataTypes.Add(name, type);
         }
 
         public static bool TryGetCustomValue<T>(this DeathPersistentSaveData data,string name, out T value) where T : class, new()
         {
             value = null;
-            if (saveDatas.TryGetValue(data, out var dic) && dic.ContainsKey(name))
+            if (!dataTypes.ContainsKey(name))
+                dataTypes.Add(name, typeof(T));
+            if (saveDatas.TryGetValue(data, out var dic) && dataTypes.ContainsKey(name))
             {
-                if (dic[name] is T t)
+                if(!dic.ContainsKey(name))
+                    dic.Add(name, (null, new T()));
+                if (dic[name].newValue is T t)
+                {
                     value = t;
-                
+                    return true;
+                }
                 else
-                    value = new T();
-                return true;
+                    return false;
+                
 
             }
             return false;
@@ -72,9 +70,11 @@ namespace Nutils.hook
 
         public static bool TrySetCustomValue<T>(this DeathPersistentSaveData data, string name, T value) where T : class, new()
         {
-            if (saveDatas.TryGetValue(data, out var dic) && dic.ContainsKey(name))
+            if (!dataTypes.ContainsKey(name))
+                dataTypes.Add(name, typeof(T));
+            if (saveDatas.TryGetValue(data, out var dic) && dataTypes.ContainsKey(name))
             {
-                dic[name] = value;
+                dic[name] = (dic[name].Item1, value);
                 return true;
             }
             return false;
@@ -86,10 +86,13 @@ namespace Nutils.hook
             {
                 foreach (var data in datas)
                 {
-                    
-                    var save = "NUTILS<dpB>" + data.Key + "<dpB>" + ToString(dataTypes[data.Key], data.Value) + "<dpA>";
-                    Plugin.Log("Save Data : {0}", save);
-                    re += save;
+                    var value = (saveAsIfPlayerDied || saveAsIfPlayerQuit) ? data.Value.origValue : ToString(dataTypes[data.Key], data.Value.newValue);
+                    if (value != null)
+                    {
+                        var save = "NUTILS<dpB>" + data.Key + "<dpB>" + value + "<dpA>";
+                        Plugin.Log("Save Data : {0}", save);
+                        re += save;
+                    }
                 }
             }
 
@@ -111,7 +114,7 @@ namespace Nutils.hook
                     if (dataTypes.ContainsKey(words[1]) && saveDatas.TryGetValue(self, out var list))
                     {
                         Plugin.Log("Loaded Data : {0} , {1}", words[1], words[2]);
-                        list[words[1]] = FromString(dataTypes[words[1]], words[2]);
+                        list[words[1]] = (words[2], FromString(dataTypes[words[1]], words[2]));
                         read.Add(line);
                     }
                 }
@@ -156,11 +159,10 @@ namespace Nutils.hook
 
         private static bool isLoaded;
 
-        private static Dictionary<string, Type> dataTypes;
+        private static Dictionary<string, Type> dataTypes = new Dictionary<string, Type>();
 
-        private static ConditionalWeakTable<DeathPersistentSaveData, Dictionary<string, object>> saveDatas;
-
- 
+        private static ConditionalWeakTable<DeathPersistentSaveData, Dictionary<string,(string origValue, object newValue)>> saveDatas =
+            new ConditionalWeakTable<DeathPersistentSaveData, Dictionary<string, (string origValue, object newValue)>>();
 
     }
 }
