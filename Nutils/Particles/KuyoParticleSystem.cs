@@ -1,0 +1,452 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using UnityEngine;
+using Random = UnityEngine.Random;
+
+namespace Nutils.Particles
+{
+    public class KuyoParticleEmitter : CosmeticSprite
+    {
+        public static KuyoParticleEmitter CreateParticleEmitter(Room room, float emitterLife, bool loop = false, bool forceDie = false, CreateParticleDelegate createParticle = null,
+            string container = "Water")
+        {
+            var re = new KuyoParticleEmitter(room, createParticle ?? SimpleParticle.DefaultParticle, emitterLife, loop, forceDie, container);
+            room.AddObject(re);
+            return re;
+        }
+
+        protected KuyoParticleEmitter(Room room, CreateParticleDelegate createParticle, float emitterMaxTime, bool loop, bool forceDie, string container)
+        {
+            this.room = room;
+            this.emitterMaxTime = emitterMaxTime;
+            this.loop = loop;
+            this.forceDie = forceDie;
+            this.createParticle = createParticle;
+            this.container = container;
+            if (this.emitterMaxTime < 0)
+                isInf = true;
+
+            //仅负责创建
+            createPlaceHolder = createParticle(this);
+        }
+
+
+        public override void InitiateSprites(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam)
+        {
+            sLeaser.sprites = Array.Empty<FSprite>();
+            sLeaser.containers = new FContainer[extendLength];
+            for(int i =0;i < sLeaser.containers.Length;i++)
+                createPlaceHolder.InitiateSprites(rCam, sLeaser.containers[i] = new FContainer());
+            containerIndex = rCam.SpriteLayerIndex[container];
+        }
+
+
+        public override void DrawSprites(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+        {
+            if (slatedForDeletetion)
+            {
+                sLeaser.CleanSpritesAndRemove();
+                foreach (var container in sLeaser.containers)
+                {
+                    container.RemoveAllChildren();
+                    container.RemoveFromContainer();
+                } 
+                return;
+            }
+            base.DrawSprites(sLeaser, rCam, timeStacker, camPos);
+            if (sLeaser.containers.Length < maxLength)
+            {
+                var lastLength = sLeaser.containers.Length;
+                Array.Resize(ref sLeaser.containers, maxLength + extendLength);
+                for (int i = lastLength; i < sLeaser.containers.Length; i++)
+                    createPlaceHolder.InitiateSprites(rCam, sLeaser.containers[i] = new FContainer());
+            }
+
+            if (needCleanContainer.Count != 0)
+            {
+                foreach (var index in needCleanContainer)
+                {
+                    sLeaser.containers[index].RemoveFromContainer();
+                    //sLeaser.containers[index].SetPosition(-100, -100);
+                }
+
+                needCleanContainer.Clear();
+            }
+
+            var smoothPos = Vector2.Lerp(lastPos, pos, timeStacker);
+            foreach (var particle in particles)
+            {
+                if(sLeaser.containers[particle.BindContainerIndex].container == null)
+                    rCam.SpriteLayers[containerIndex].AddChild(sLeaser.containers[particle.BindContainerIndex]);
+                particle.DrawSprites(sLeaser.containers[particle.BindContainerIndex], smoothPos, rCam, timeStacker, camPos);
+            }
+        }
+
+        #region ApplyModule
+
+        public KuyoParticleEmitter AppendInitModule(IParticleInitModule module)
+        {
+            particleSpawnList.Add(module);
+            return this;
+        }
+
+
+        public KuyoParticleEmitter AppendUpdateModule(IParticleUpdateModule module)
+        {
+            particleUpdateList.Add(module);
+            return this;
+        }
+
+        public KuyoParticleEmitter AppendDieModule(IParticleDieModule module)
+        {
+            particleDieList.Add(module);
+            return this;
+        }
+
+
+
+
+        public KuyoParticleEmitter AppendEmitterModule(ModifyEmitterDelegate deg)
+        {
+            emitterUpdateList.Add(new DegEmitterModule(deg));
+            return this;
+        }
+
+        public KuyoParticleEmitter AppendInitModule(ModifyParticleDelegate deg)
+        {
+            particleSpawnList.Add(new DegParticleModule(deg));
+            return this;
+        }
+
+
+        public KuyoParticleEmitter AppendUpdateModule(ModifyParticleDelegate deg)
+        {
+            particleUpdateList.Add(new DegParticleModule(deg));
+            return this;
+        }
+
+        public KuyoParticleEmitter AppendDieModule(ModifyParticleDelegate deg)
+        {
+            particleDieList.Add(new DegParticleModule(deg));
+            return this;
+        }
+
+
+        public KuyoParticleEmitter AppendEmitterModule(IEmitterModule module)
+        {
+            emitterUpdateList.Add(module);
+            return this;
+        }
+
+        #endregion
+
+
+        public void Die(bool forceDelete = false)
+        {
+            if (forceDelete || forceDie)
+                Destroy();
+            else
+                waitForDie = true;
+
+        }
+
+        public void SpawnParticle()
+        {
+            var newIndex = freeContainerIndex.Any() ? freeContainerIndex.Dequeue() : particles.Count;
+            maxLength = Mathf.Max(maxLength, newIndex+1);
+            var newParticle = (freeParticlesQueue.Any() ? freeParticlesQueue.Dequeue() : createParticle(this)).Reset(pos, newIndex);
+            foreach (var module in particleSpawnList)
+                module.ParticleFunction(newParticle);
+           
+            newParticle.AfterInit();
+
+            foreach (var module in particleUpdateList.Where(i => i is IParticleNeedInitUpdateModule))
+                module.ParticleFunction(newParticle);
+
+            particles.Add(newParticle);
+        }
+
+
+
+        public override void Update(bool eu)
+        {
+            base.Update(eu);
+
+            if (!Paused)
+            {
+                LastLifeTime = LifeTime;
+                LifeTime += 1 / 40f / emitterMaxTime;
+                TimeCounter++;
+
+                if (!waitForDie)
+                {
+                    foreach (var module in emitterUpdateList)
+                        module.UpdateEmitter(this);
+                }
+                else
+                {
+                    if (particles.Count == 0)
+                        Destroy();
+                }
+            }
+
+            for (int i = particles.Count-1; i>=0 ;i--)
+            {
+                var particle = particles[i];
+                particle.Update();
+                foreach (var module in particleUpdateList)
+                    module.ParticleFunction(particle);
+                if (particle.life >= 1)
+                {
+                    foreach (var module in particleDieList)
+                        module.ParticleFunction(particle);
+
+                    //可能发生二次更新
+                    if (particle.life >= 1)
+                    {
+                        freeParticlesQueue.Enqueue(particle);
+                        needCleanContainer.Add(particle.BindContainerIndex);
+                        freeContainerIndex.Enqueue(particle.BindContainerIndex);
+                        particles.RemoveAt(i);
+                    }
+                }
+
+            }
+
+            if (LifeTime > 1 && !isInf)
+            {
+                if (loop)
+                {
+                    LifeTime = 0;
+                    TimeCounter = 0;
+                }
+                else if(!forceDie)
+                    waitForDie = true;
+                else
+                    Destroy();
+            }
+        }
+
+        public delegate void ModifyParticleDelegate(SimpleParticle particle);
+        public delegate void ModifyEmitterDelegate(KuyoParticleEmitter emitter);
+
+        public delegate SimpleParticle CreateParticleDelegate(KuyoParticleEmitter emitter);
+
+
+        public int extendLength = 10;
+
+        public float LifeTime { get; private set; }
+        public float LastLifeTime { get; private set; }
+
+
+        public int TimeCounter { get; private set; }
+
+        public bool Paused { get; set; }
+
+        private int maxLength;
+
+        private int containerIndex = -1;
+
+        private bool waitForDie;
+
+        private readonly bool isInf;
+
+        private readonly bool loop;
+
+        private readonly bool forceDie;
+
+        private readonly float emitterMaxTime;
+
+        private readonly string container;
+
+
+
+        private readonly SimpleParticle createPlaceHolder;
+
+        private readonly CreateParticleDelegate createParticle;
+
+
+        private readonly List<IEmitterModule> emitterUpdateList = new();
+
+        private readonly List<IParticleModule> particleUpdateList = new();
+        private readonly List<IParticleModule> particleDieList = new();
+        private readonly List<IParticleModule> particleSpawnList = new();
+
+
+        public readonly List<SimpleParticle> particles = new();
+        private readonly Queue<SimpleParticle> freeParticlesQueue = new();
+
+        private readonly List<int> needCleanContainer = new();
+
+        private readonly Queue<int> freeContainerIndex = new();
+
+
+    }
+
+
+
+    public class SimpleParticle
+    {
+        public static KuyoParticleEmitter.CreateParticleDelegate SimplyParticle(int count) => (emitter) => new(emitter,count);
+
+        public static KuyoParticleEmitter.CreateParticleDelegate DefaultParticle = (emitter) => new SimpleParticle(emitter, 0);
+        public readonly KuyoParticleEmitter emitter;
+        public SimpleParticle(KuyoParticleEmitter emitter,int spriteCount)
+        {
+            this.emitter = emitter;
+            this.spriteCount = spriteCount;
+        }
+
+        public Vector2 AbstractPos => isLocal ? pos + emitter.pos : pos + initPos;
+
+        public virtual void InitiateSprites(RoomCamera rCam, FContainer container)
+        {
+            for (int i = 0; i < spriteCount; i++)
+                container.AddChild(new FSprite("Futile_White"));
+        }
+
+        public virtual SimpleParticle Reset(Vector2 initPos, int index)
+        {
+            counter = 0;
+            BindContainerIndex = index;
+
+            elements = new FAtlasElement[spriteCount];
+            shaders = new FShader[spriteCount];
+            Element = Futile.atlasManager.GetElementWithName("Futile_White");
+            Shader = FShader.defaultShader;
+
+            maxLife = 1f;
+            lastLife = life = 0f;
+            lastScale = scale = Vector2.one;
+            lastPos = pos = Vector2.zero;
+            lastRotation = rotation = 0f;
+            lastColor = color = Color.white;
+            vel = Vector2.zero;
+            this.initPos = initPos;
+
+            customObjects.Clear();
+            return this;
+        }
+
+        public virtual void AfterInit()
+        {
+            initColor = color;
+            initScale = scale;
+        }
+
+        public int BindContainerIndex { get; private set; }
+
+        public virtual void Update()
+        {
+            counter++;
+            lastPos = pos;
+            lastLife = life;
+            lastRotation = rotation;
+            lastScale = scale;
+            lastColor = color;
+            pos += vel;
+            life += 1 / 40f / maxLife;
+        }
+
+
+        protected int spriteCount = 1;
+
+        public float maxLife = 1f;
+
+        public FAtlasElement Element
+        {
+            get => elements[0];
+            set => elements[0] = value;
+        }
+
+        public FShader Shader
+        {
+            get => shaders[0];
+            set => shaders[0] = value;
+        }
+
+        public FAtlasElement[] elements;
+        public FShader[] shaders;
+
+        public float life;
+        public float lastLife;
+
+        public Vector2 scale;
+        public Vector2 lastScale;
+
+        public Vector2 pos;
+        public Vector2 lastPos;
+
+        public float rotation;
+        public float lastRotation;
+
+        public Color color;
+        public Color lastColor;
+
+        public Vector2 vel;
+
+
+        public Vector2 initScale;
+        public Color initColor;
+        private Vector2 initPos;
+
+        public Vector2 InitPos => initPos;
+
+
+
+        public int counter;
+
+        public bool isLocal;
+
+
+        protected readonly Dictionary<string, object> customObjects = new();
+
+
+        public bool TryGetData<T>(string name, out T data)
+        {
+            var re = customObjects.TryGetValue(name, out var r);
+            data = (T)r;
+            return re;
+        }
+
+        public void SetData<T>(string name, T data)
+        {
+            customObjects.Add(name, data);
+        }
+
+        public virtual void DrawSprites(FContainer container, Vector2 centerPos, RoomCamera rCam, float timeStacker, Vector2 camPos)
+        {
+
+            for (int i = 0; i < spriteCount; i++)
+            {
+                var sprite = container._childNodes[i] as FSprite;
+                var element = elements[i] ?? Element;
+                var shader = shaders[i] ?? Shader;
+                if(sprite!.shader != shader)
+                    sprite.shader = shader;
+                if(sprite.element != element)
+                    sprite.element = element;
+
+                sprite.color = Color.Lerp(lastColor, color, timeStacker);
+                sprite.alpha = Color.Lerp(lastColor, color, timeStacker).a;
+            }
+
+
+            container.SetPosition(
+                Vector2.Lerp(lastPos, pos, timeStacker) + (isLocal ? centerPos : initPos) - camPos);
+            container.scaleX = Vector2.Lerp(lastScale, scale, timeStacker).x;
+            container.scaleY = Vector2.Lerp(lastScale, scale, timeStacker).y;
+            container.rotation = Mathf.Lerp(lastRotation, rotation, timeStacker);
+        }
+
+  
+
+    }
+
+
+
+
+
+}

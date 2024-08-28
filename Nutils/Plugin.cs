@@ -14,7 +14,7 @@ using UnityEngine;
 #pragma warning restore CS0618
 namespace Nutils
 {
-    [BepInPlugin("nutils", "Nutils", "1.1.5")]
+    [BepInPlugin("nutils", "Nutils", "1.2.0")]
     public class Plugin : BaseUnityPlugin
     {
         public void OnEnable()
@@ -25,11 +25,14 @@ namespace Nutils
 
         private bool isLoaded = false;
 
-        public static void Log(string m)
+        public static void Log(object m)
         {
             Debug.Log("[Nutils] " + m);
         }
-
+        public static void LogError(object m)
+        {
+            Debug.Log("[Nutils] " + m);
+        }
         public static void Log(string f, params object[] args)
         {
             Debug.Log("[Nutils] " + string.Format(f, args));
@@ -54,6 +57,17 @@ namespace Nutils
                     PlayerBaseHook.OnModsInit();
                     DeathSaveDataHook.OnModsInit();
                     MiscSaveDataHook.OnModsInit();
+
+                    AssetBundle bundle =
+                        AssetBundle.LoadFromFile(AssetManager.ResolveFilePath("assetbundles/nutilsasset"));
+
+                    foreach (var shader in bundle.LoadAllAssets<Shader>())
+                    {
+                        self.Shaders.Add($"Nutils.{shader.name}",
+                            FShader.CreateShader($"Nutils.{shader.name}", shader));
+                        Plugin.Log($"Load shader: {shader.name}");
+                    }
+
                     Logger.LogInfo("Nutils Inited");
                     isLoaded = true;
                 }
