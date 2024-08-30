@@ -17,6 +17,15 @@ namespace Nutils.Particles
             return re;
         }
 
+        public static KuyoParticleEmitter CreateParticleEmitter(Room room,Vector2 pos, float emitterLife, bool loop = false, bool forceDie = false, CreateParticleDelegate createParticle = null,
+            string container = "Water")
+        {
+            var re = new KuyoParticleEmitter(room, createParticle ?? SimpleParticle.DefaultParticle, emitterLife, loop, forceDie, container);
+            re.lastPos = re.pos = pos;
+            room.AddObject(re);
+            return re;
+        }
+
         protected KuyoParticleEmitter(Room room, CreateParticleDelegate createParticle, float emitterMaxTime, bool loop, bool forceDie, string container)
         {
             this.room = room;
@@ -289,15 +298,43 @@ namespace Nutils.Particles
 
     public class SimpleParticle
     {
+
+        public class SpriteData
+        {
+            public float scaleX = 1;
+            public float scaleY = 1;
+            public Color color = Color.white;
+
+            public SpriteData(float scaleX, float scaleY, Color? color = null)
+            {
+                this.scaleX = scaleX;
+                this.scaleY = scaleY;
+                this.color = color ?? Color.white;
+            }
+            public SpriteData(float scale, Color? color = null)
+            {
+                this.scaleX = scale;
+                this.scaleY = scale;
+                this.color = color ?? Color.white;
+            }
+
+            public SpriteData(Color color)
+            {
+                this.color = color;
+            }
+            public SpriteData() { }
+        }
+
         public static KuyoParticleEmitter.CreateParticleDelegate SimplyParticle(int count) => (emitter) => new(emitter,count);
 
-        public static KuyoParticleEmitter.CreateParticleDelegate DefaultParticle = (emitter) => new SimpleParticle(emitter, 0);
+        public static KuyoParticleEmitter.CreateParticleDelegate DefaultParticle = (emitter) => new SimpleParticle(emitter, 1);
         public readonly KuyoParticleEmitter emitter;
         public SimpleParticle(KuyoParticleEmitter emitter,int spriteCount)
         {
             this.emitter = emitter;
             this.spriteCount = spriteCount;
         }
+        public readonly int spriteCount = 1;
 
         public Vector2 AbstractPos => isLocal ? pos + emitter.pos : pos + initPos;
 
@@ -316,6 +353,7 @@ namespace Nutils.Particles
             shaders = new FShader[spriteCount];
             Element = Futile.atlasManager.GetElementWithName("Futile_White");
             Shader = FShader.defaultShader;
+            spriteDatas = new SpriteData[spriteCount];
 
             maxLife = 1f;
             lastLife = life = 0f;
@@ -351,7 +389,6 @@ namespace Nutils.Particles
         }
 
 
-        protected int spriteCount = 1;
 
         public float maxLife = 1f;
 
@@ -369,6 +406,10 @@ namespace Nutils.Particles
 
         public FAtlasElement[] elements;
         public FShader[] shaders;
+
+        public SpriteData[] spriteDatas;
+
+        public static readonly SpriteData DefaultSpriteData = new();
 
         public float life;
         public float lastLife;
@@ -429,8 +470,13 @@ namespace Nutils.Particles
                 if(sprite.element != element)
                     sprite.element = element;
 
-                sprite.color = Color.Lerp(lastColor, color, timeStacker);
-                sprite.alpha = Color.Lerp(lastColor, color, timeStacker).a;
+                var data = spriteDatas[i] ?? DefaultSpriteData;
+
+                sprite.color = Color.Lerp(lastColor, color, timeStacker) * data.color.CloneWithNewAlpha(1);
+                sprite.alpha = Color.Lerp(lastColor, color, timeStacker).a * data.color.a;
+                sprite.scaleX = data.scaleX;
+                sprite.scaleY = data.scaleY;
+
             }
 
 

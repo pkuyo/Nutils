@@ -1,4 +1,6 @@
-﻿namespace Nutils.Particles
+﻿using UnityEngine;
+
+namespace Nutils.Particles
 {
     public interface IEmitterModule
     {

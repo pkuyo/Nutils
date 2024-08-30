@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Nutils;
 using RWCustom;
 using UnityEngine;
+using static Nutils.Particles.SimpleParticle;
 using Random = UnityEngine.Random;
 
 namespace Nutils.Particles
@@ -41,6 +42,69 @@ namespace Nutils.Particles
         public void ParticleFunction(SimpleParticle emitter)
         {
             deg(emitter);
+        }
+    }
+
+    public class ChunksInitPosModule : IParticleInitModule
+    {
+        private readonly BodyChunk[] chunks;
+        private readonly bool autoRad = false;
+        private readonly bool onSurface;
+
+        private readonly IParticleValue<float> radValue;
+        public ChunksInitPosModule(IParticleValue<float> rad, bool autoRad = true, bool onSurface = false, params BodyChunk[] chunks)
+        {
+            this.autoRad = autoRad;
+            this.radValue = rad;
+            this.chunks = chunks;
+            this.onSurface = onSurface;
+
+        }
+
+        public void ParticleFunction(SimpleParticle particle)
+        {
+            var index = Random.Range(0, chunks.Length);
+            particle.pos = chunks[index].pos;
+            if (autoRad)
+            {
+                particle.pos += chunks[index].rad * (onSurface ? 1 : Random.value) *
+                                radValue.GetValue(true, particle.emitter.LifeTime) * Custom.RNV();
+            }
+            else
+            {
+                particle.pos += radValue.GetValue(true, particle.emitter.LifeTime) * (onSurface ? 1 : Random.value) * Custom.RNV();
+            }
+
+        }
+    }
+    public class ChunkConnectionsInitPosModule : IParticleInitModule
+    {
+        private readonly PhysicalObject.BodyChunkConnection[] connections;
+        private readonly bool autoRad = false;
+        private readonly bool onSurface;
+        private readonly IParticleValue<float> radValue;
+        public ChunkConnectionsInitPosModule(IParticleValue<float> rad, bool autoRad = true, bool onSurface = false, params PhysicalObject.BodyChunkConnection[] connections)
+        {
+            this.autoRad = autoRad;
+            this.radValue = rad;
+            this.connections = connections;
+            this.onSurface = onSurface;
+        }
+
+        public void ParticleFunction(SimpleParticle particle)
+        {
+            var index = Random.Range(0, connections.Length);
+            var lerp = Random.value;
+            particle.pos = Vector2.Lerp(connections[index].chunk1.pos, connections[index].chunk2.pos, lerp);
+            if (autoRad)
+            {
+                particle.pos += Mathf.Lerp(connections[index].chunk1.rad , connections[index].chunk2.rad, lerp) * (onSurface ? 1 : Random.value) *
+                                radValue.GetValue(true, particle.emitter.LifeTime) * Custom.RNV();
+            }
+            else
+            {
+                particle.pos += radValue.GetValue(true, particle.emitter.LifeTime) * (onSurface ? 1 : Random.value)  * Custom.RNV();
+            }
         }
     }
 
@@ -102,12 +166,13 @@ namespace Nutils.Particles
         private readonly FAtlasElement element;
         private readonly FShader shader;
         private readonly int index;
+        private readonly SimpleParticle.SpriteData data;
 
-        public InitElementModule(string elementName,string shaderName = null, int index = 0)
+        public InitElementModule(string elementName,string shaderName = null,SpriteData spriteData = null, int index = 0)
         {
             element = Futile.atlasManager.GetElementWithName(elementName);
             this.index = index;
-
+            data = spriteData;
             if (shaderName != null && !Custom.rainWorld.Shaders.ContainsKey(shaderName))
             {
                 Plugin.LogError($"Shader Not found : {shaderName}");
@@ -121,15 +186,17 @@ namespace Nutils.Particles
             element = Futile.atlasManager.GetElementWithName(elementName);
             shader = FShader.defaultShader;
             this.index = index;
-
         }
 
         public void ParticleFunction(SimpleParticle particle)
         {
             particle.shaders[index] = shader;
             particle.elements[index] = element;
+            particle.spriteDatas[index] = data;
         }
     }
+
+
 
     public class InitRotationModule : IParticleInitModule
     {

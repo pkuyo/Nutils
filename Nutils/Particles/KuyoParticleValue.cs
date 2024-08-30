@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using RWCustom;
+using SlugBase.SaveData;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -9,6 +10,12 @@ namespace Nutils.Particles
 
     public static class KuyoCustom
     {
+        public static T GetValue<T>(this SlugBaseSaveData saveData, string name) where T : class, new()
+        {
+            if(saveData.TryGet(name,out T value))
+                return value;
+            return new T();
+        }
         public static Type[] SafeGetTypes(this Assembly assembly)
         {
             try
@@ -60,6 +67,7 @@ namespace Nutils.Particles
     public class ConstFloat : IParticleValue<float>
     {
         public static implicit operator ConstFloat(float b) => new(b);
+
 
         private float value;
         public ConstFloat(float f) => value = f;
@@ -190,12 +198,13 @@ namespace Nutils.Particles
         private readonly Color min;
         private readonly Color max;
         private Color randValue;
-        public UniformColor(Color min, Color max) => (this.min, this.max, randValue) = (min, max, Color.Lerp(min, max, 0.5f));
+        private readonly bool useLerp;
+        public UniformColor(Color min, Color max,bool useLerp = false) => (this.min, this.max, randValue, this.useLerp) = (min, max, Color.Lerp(min, max, 0.5f), useLerp);
 
         public Color GetValue(bool rand, float time)
         {
             if (rand)
-                return randValue = KuyoCustom.RandomRange(min, max);
+                return randValue = useLerp ? Color.Lerp(min,max,Random.value) : KuyoCustom.RandomRange(min, max);
             return randValue;
         }
 

@@ -3,6 +3,7 @@ using Menu;
 using Nutils.hook;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Permissions;
 using System.Text;
@@ -63,9 +64,10 @@ namespace Nutils
 
                     foreach (var shader in bundle.LoadAllAssets<Shader>())
                     {
-                        self.Shaders.Add($"Nutils.{shader.name}",
-                            FShader.CreateShader($"Nutils.{shader.name}", shader));
-                        Plugin.Log($"Load shader: {shader.name}");
+                        var name = Path.GetFileName(shader.name);
+                        self.Shaders.Add($"Nutils.{name}",
+                            FShader.CreateShader($"Nutils.{name}", shader));
+                        Plugin.Log($"Load shader: {name}");
                     }
 
                     Logger.LogInfo("Nutils Inited");
