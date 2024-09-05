@@ -27,7 +27,7 @@ namespace Nutils.Particles
     public abstract class SimpleParModule
     {
         private readonly bool onlyRandAtSpawn;
-        public bool NeedRandom(int counter) => !(onlyRandAtSpawn && counter > 1);
+        public int? NeedRandom(SimpleParticle particle) => !(onlyRandAtSpawn && particle.counter > 1) ? particle.RandomSeed : null;
         protected SimpleParModule(bool onlyRandAtSpawn) => this.onlyRandAtSpawn = onlyRandAtSpawn;
 
     }
@@ -52,28 +52,34 @@ namespace Nutils.Particles
         private readonly bool onSurface;
 
         private readonly IParticleValue<float> radValue;
-        public ChunksInitPosModule(IParticleValue<float> rad, bool autoRad = true, bool onSurface = false, params BodyChunk[] chunks)
+        private readonly IParticleValue<float> vel;
+
+        public ChunksInitPosModule(IParticleValue<float> rad, IParticleValue<float> vel, bool autoRad = true, bool onSurface = false, params BodyChunk[] chunks)
         {
             this.autoRad = autoRad;
             this.radValue = rad;
             this.chunks = chunks;
             this.onSurface = onSurface;
+            this.vel = vel;
 
         }
 
         public void ParticleFunction(SimpleParticle particle)
         {
             var index = Random.Range(0, chunks.Length);
-            particle.pos = chunks[index].pos;
+            particle.pos = chunks[index].pos - particle.emitter.pos;
+            var dir = Custom.RNV();
+            particle.vel = vel.GetValue(particle.emitter.LifeTime) * dir;
             if (autoRad)
             {
                 particle.pos += chunks[index].rad * (onSurface ? 1 : Random.value) *
-                                radValue.GetValue(true, particle.emitter.LifeTime) * Custom.RNV();
+                                radValue.GetValue(particle.emitter.LifeTime) * dir;
             }
             else
             {
-                particle.pos += radValue.GetValue(true, particle.emitter.LifeTime) * (onSurface ? 1 : Random.value) * Custom.RNV();
+                particle.pos += radValue.GetValue(particle.emitter.LifeTime) * (onSurface ? 1 : Random.value) * dir;
             }
+            particle.lastPos = particle.pos;
 
         }
     }
@@ -83,28 +89,34 @@ namespace Nutils.Particles
         private readonly bool autoRad = false;
         private readonly bool onSurface;
         private readonly IParticleValue<float> radValue;
-        public ChunkConnectionsInitPosModule(IParticleValue<float> rad, bool autoRad = true, bool onSurface = false, params PhysicalObject.BodyChunkConnection[] connections)
+        private readonly IParticleValue<float> vel;
+
+        public ChunkConnectionsInitPosModule(IParticleValue<float> rad, IParticleValue<float> vel, bool autoRad = true, bool onSurface = false, params PhysicalObject.BodyChunkConnection[] connections)
         {
             this.autoRad = autoRad;
             this.radValue = rad;
             this.connections = connections;
             this.onSurface = onSurface;
+            this.vel = vel;
         }
 
         public void ParticleFunction(SimpleParticle particle)
         {
             var index = Random.Range(0, connections.Length);
-            var lerp = Random.value;
-            particle.pos = Vector2.Lerp(connections[index].chunk1.pos, connections[index].chunk2.pos, lerp);
+            var lerp = Random.value; 
+            particle.pos = Vector2.Lerp(connections[index].chunk1.pos, connections[index].chunk2.pos, lerp) - particle.emitter.pos;
+            var dir = Custom.RNV();
+            particle.vel = vel.GetValue(particle.emitter.LifeTime) * dir;
             if (autoRad)
             {
                 particle.pos += Mathf.Lerp(connections[index].chunk1.rad , connections[index].chunk2.rad, lerp) * (onSurface ? 1 : Random.value) *
-                                radValue.GetValue(true, particle.emitter.LifeTime) * Custom.RNV();
+                                radValue.GetValue(particle.emitter.LifeTime) * dir;
             }
             else
             {
-                particle.pos += radValue.GetValue(true, particle.emitter.LifeTime) * (onSurface ? 1 : Random.value)  * Custom.RNV();
+                particle.pos += radValue.GetValue(particle.emitter.LifeTime) * (onSurface ? 1 : Random.value)  * dir;
             }
+            particle.lastPos = particle.pos;
         }
     }
 
@@ -123,9 +135,9 @@ namespace Nutils.Particles
         }
         public void ParticleFunction(SimpleParticle particle)
         {
-            var r = rad.GetValue(true, particle.emitter.LifeTime);
+            var r = rad.GetValue(particle.emitter.LifeTime);
             particle.pos = particle.lastPos = (onSurface ? r : Random.Range(0, r)) * Custom.RNV();
-            particle.vel = particle.pos.normalized * vel.GetValue(true, particle.emitter.LifeTime);
+            particle.vel = particle.pos.normalized * vel.GetValue(particle.emitter.LifeTime);
         }
     }
     public class InitVelocityModule : IParticleInitModule
@@ -138,7 +150,7 @@ namespace Nutils.Particles
         }
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.vel = velocity.GetValue(true, particle.emitter.LifeTime);
+            particle.vel = velocity.GetValue(particle.emitter.LifeTime);
         }
     }
 
@@ -155,7 +167,7 @@ namespace Nutils.Particles
         }
         public void ParticleFunction(SimpleParticle particle)
         {
-            var scale = this.scale.GetValue(true, particle.emitter.LifeTime);
+            var scale = this.scale.GetValue(particle.emitter.LifeTime);
             particle.lastScale.y = particle.scale.x = scale.x;
             particle.lastScale.x = particle.scale.y = quad ? scale.x : scale.y;
         }
@@ -192,7 +204,7 @@ namespace Nutils.Particles
         {
             particle.shaders[index] = shader;
             particle.elements[index] = element;
-            particle.spriteDatas[index] = data;
+            particle.spriteDatas[index] = data ?? particle.spriteDatas[index];
         }
     }
 
@@ -208,7 +220,7 @@ namespace Nutils.Particles
 
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.lastRotation = particle.rotation = this.rotation.GetValue(true, particle.emitter.LifeTime);
+            particle.lastRotation = particle.rotation = this.rotation.GetValue(particle.emitter.LifeTime);
         }
     }
     public class InitColorModule : IParticleInitModule
@@ -221,7 +233,7 @@ namespace Nutils.Particles
 
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.lastColor = particle.color = color.GetValue(true, particle.emitter.LifeTime);
+            particle.lastColor = particle.color = color.GetValue(particle.emitter.LifeTime);
         }
     }
 
@@ -235,7 +247,7 @@ namespace Nutils.Particles
 
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.maxLife = life.GetValue(true, particle.emitter.LifeTime);
+            particle.maxLife = life.GetValue(particle.emitter.LifeTime);
 
         }
     }
@@ -251,7 +263,7 @@ namespace Nutils.Particles
         }
         public void ParticleFunction(SimpleParticle particle)
         {
-            var scale = this.scale.GetValue(NeedRandom(particle.counter), particle.life);
+            var scale = this.scale.GetValue(particle.life, NeedRandom(particle));
             particle.scale.x = scale.x * particle.initScale.x;
             particle.scale.y = quad ? scale.x * particle.initScale.x : scale.y * particle.initScale.y;
         }
@@ -267,7 +279,7 @@ namespace Nutils.Particles
         }
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.color = color.GetValue(NeedRandom(particle.counter), particle.life) * particle.initColor;
+            particle.color = color.GetValue(particle.life, NeedRandom(particle)) * particle.initColor;
         }
     }
 
@@ -281,7 +293,7 @@ namespace Nutils.Particles
 
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.vel += force.GetValue(NeedRandom(particle.counter), particle.life) / 40;
+            particle.vel += force.GetValue(particle.life, NeedRandom(particle)) / 40;
 
         }
     }
@@ -295,7 +307,7 @@ namespace Nutils.Particles
 
         public void ParticleFunction(SimpleParticle particle)
         {
-            particle.vel *= resistance.GetValue(NeedRandom(particle.counter), particle.life);
+            particle.vel *= resistance.GetValue(particle.life, NeedRandom(particle));
 
         }
     }
@@ -325,6 +337,19 @@ namespace Nutils.Particles
             particle.scale.x = Mathf.Min(particle.scale.x, maxScale.x);
             particle.scale.y = Mathf.Min(particle.scale.y, maxScale.y);
 
+        }
+    }
+    public class RotationSpeedModule : SimpleParModule, IParticleUpdateModule
+    {
+        private readonly IParticleValue<float> speed;
+        public RotationSpeedModule(IParticleValue<float> speed, bool onlyRandAtSpawn = true) : base(onlyRandAtSpawn)
+        {
+            this.speed = speed;
+        }
+
+        public void ParticleFunction(SimpleParticle particle)
+        {
+            particle.rotation += speed.GetValue(particle.life, NeedRandom(particle));
         }
     }
 }

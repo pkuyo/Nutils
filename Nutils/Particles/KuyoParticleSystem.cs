@@ -363,8 +363,9 @@ namespace Nutils.Particles
             lastColor = color = Color.white;
             vel = Vector2.zero;
             this.initPos = initPos;
+            RandomSeed = DateTime.Now.Ticks.GetHashCode() + BindContainerIndex;
 
-            customObjects.Clear();
+                customObjects.Clear();
             return this;
         }
 
@@ -375,6 +376,8 @@ namespace Nutils.Particles
         }
 
         public int BindContainerIndex { get; private set; }
+
+        public int RandomSeed { get; private set; }
 
         public virtual void Update()
         {

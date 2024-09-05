@@ -6,28 +6,21 @@ namespace Nutils.Particles
     {
         public void UpdateEmitter(KuyoParticleEmitter emitter);
     }
-    public abstract class SimpleEmitterModule : IEmitterModule
-    {
-        private readonly bool onlyRandAtSpawn;
-        public bool NeedRandom(int counter) => !(onlyRandAtSpawn && counter > 1);
-        protected SimpleEmitterModule(bool onlyRandAtSpawn) => this.onlyRandAtSpawn = onlyRandAtSpawn;
 
-        public abstract void UpdateEmitter(KuyoParticleEmitter emitter);
-    }
 
-    public class SpawnModule : SimpleEmitterModule
+    public class SpawnModule : IEmitterModule
     {
         private IParticleValue<float> spawnRate;
         private float timeCost;
-        public SpawnModule(IParticleValue<float> spawnRate,bool onlyRandAtSpawn = false) : base(onlyRandAtSpawn)
+        public SpawnModule(IParticleValue<float> spawnRate) 
         {
             this.spawnRate = spawnRate;
         }
 
-        public override void UpdateEmitter(KuyoParticleEmitter emitter)
+        public void UpdateEmitter(KuyoParticleEmitter emitter)
         {
             timeCost += 1 / 40f;
-            if (timeCost > 1 / spawnRate.GetValue(NeedRandom(emitter.TimeCounter), emitter.LifeTime))
+            if (timeCost > 1 / spawnRate.GetValue(emitter.LifeTime))
             {
                 timeCost = 0;
                 emitter.SpawnParticle();
@@ -52,7 +45,7 @@ namespace Nutils.Particles
         {
             if (!hasBurst && emitter.LifeTime > timeDelay)
             {
-                var value = spawnCount.GetValue(true, emitter.LifeTime);
+                var value = spawnCount.GetValue(emitter.LifeTime);
                 for (int i = 0; i < value; i++)
                     emitter.SpawnParticle();
                 hasBurst = true;

@@ -58,7 +58,7 @@ namespace Nutils.Particles
 
     public interface IParticleValue<out TValueType>
     {
-        TValueType GetValue(bool rand, float time);
+        TValueType GetValue(float time, int? seed = null);
     }
 
 
@@ -71,7 +71,7 @@ namespace Nutils.Particles
 
         private float value;
         public ConstFloat(float f) => value = f;
-        public float GetValue(bool rand, float time) => value;
+        public float GetValue(float time, int? seed) => value;
 
     }
 
@@ -79,14 +79,19 @@ namespace Nutils.Particles
     {
         private readonly float min;
         private readonly float max;
-        private float randValue;
-        public UniformFloat(float min, float max) => (this.min, this.max, randValue) = (min, max, Mathf.Lerp(min, max, 0.5f));
+        public UniformFloat(float min, float max) => (this.min, this.max) = (min, max);
 
-        public float GetValue(bool rand, float time)
+        public float GetValue(float time, int? seed)
         {
-            if (rand)
-                return randValue = Random.Range(min, max);
-            return randValue;
+            if (seed != null)
+            {
+                var state = Random.state;
+                Random.InitState(seed.Value);
+                var re = Random.Range(min, max);
+                Random.state = state;
+                return re;
+            }
+            return Random.Range(min, max);
         }
 
     }
@@ -95,7 +100,7 @@ namespace Nutils.Particles
     {
         private readonly Func<float, float> curveOutput;
         public ConstCurveFloat(Func<float, float> curveOutput) => this.curveOutput = curveOutput;
-        public float GetValue(bool rand, float time)
+        public float GetValue(float time, int? seed)
         {
             return curveOutput(time);
         }
@@ -105,15 +110,20 @@ namespace Nutils.Particles
     {
         private readonly Func<float, float> curveOutputA;
         private readonly Func<float, float> curveOutputB;
-        private float randValue = 0.5f;
 
         public UniformCurveFloat(Func<float, float> curveOutputA, Func<float, float> curveOutputB)
             => (this.curveOutputA, this.curveOutputB) = (curveOutputA, curveOutputB);
-        public float GetValue(bool rand, float time)
+        public float GetValue(float time, int? seed)
         {
-            if (rand)
-                randValue = Random.value;
-            return Mathf.Lerp(curveOutputA(time), curveOutputB(time), randValue);
+            if (seed != null)
+            {
+                var state = Random.state;
+                Random.InitState(seed.Value);
+                var re = Mathf.Lerp(curveOutputA(time), curveOutputB(time), Random.value);
+                Random.state = state;
+                return re;
+            }
+            return Mathf.Lerp(curveOutputA(time), curveOutputB(time), Random.value);
         }
     }
 
@@ -128,7 +138,7 @@ namespace Nutils.Particles
 
         private Vector2 value;
         public ConstVector2(Vector2 f) => value = f;
-        public Vector2 GetValue(bool rand, float time) => value;
+        public Vector2 GetValue(float time, int? seed) => value;
 
     }
 
@@ -136,18 +146,25 @@ namespace Nutils.Particles
     {
         private readonly Vector2 min;
         private readonly Vector2 max;
-        private Vector2 randValue;
-        private bool dirRandom;
+        private readonly bool dirRandom;
         public UniformVector2(Vector2 min, Vector2 max, bool dirRandom = false) => 
-            (this.min, this.max, randValue, this.dirRandom) = (min, max, Vector2.Lerp(min, max, 0.5f), dirRandom);
+            (this.min, this.max, this.dirRandom) = (min, max, dirRandom);
 
-        public Vector2 GetValue(bool rand, float time)
+        public Vector2 GetValue(float time, int? seed)
         {
-            if (rand)
-                return randValue = dirRandom
+            if (seed != null)
+            {
+                var state = Random.state;
+                Random.InitState(seed.Value);
+                Vector2 re = dirRandom
                     ? Vector3.Slerp(min, max, Random.value) * Random.Range(min.magnitude, max.magnitude)
                     : KuyoCustom.RandomRange(min, max);
-            return randValue;
+                Random.state = state;
+                return re;
+            }
+            return dirRandom
+                    ? Vector3.Slerp(min, max, Random.value) * Random.Range(min.magnitude, max.magnitude)
+                    : KuyoCustom.RandomRange(min, max);
         }
 
     }
@@ -156,7 +173,7 @@ namespace Nutils.Particles
     {
         private readonly Func<float, Vector2> curveOutput;
         public ConstCurveVector2(Func<float, Vector2> curveOutput) => this.curveOutput = curveOutput;
-        public Vector2 GetValue(bool rand, float time)
+        public Vector2 GetValue(float time, int? seed)
         {
             return curveOutput(time);
         }
@@ -166,15 +183,20 @@ namespace Nutils.Particles
     {
         private readonly Func<float, Vector2> curveOutputA;
         private readonly Func<float, Vector2> curveOutputB;
-        private float randValue = 0.5f;
 
         public UniformCurveVector2(Func<float, Vector2> curveOutputA, Func<float, Vector2> curveOutputB)
             => (this.curveOutputA, this.curveOutputB) = (curveOutputA, curveOutputB);
-        public Vector2 GetValue(bool rand, float time)
+        public Vector2 GetValue(float time, int? seed)
         {
-            if (rand)
-                randValue = Random.value;
-            return Vector2.Lerp(curveOutputA(time), curveOutputB(time), randValue);
+            if (seed != null)
+            {
+                var state = Random.state;
+                Random.InitState(seed.Value);
+                var re = Vector2.Lerp(curveOutputA(time), curveOutputB(time), Random.value);
+                Random.state = state;
+                return re;
+            }
+            return Vector2.Lerp(curveOutputA(time), curveOutputB(time), Random.value);
         }
     }
 
@@ -187,9 +209,9 @@ namespace Nutils.Particles
     {
         public static implicit operator ConstColor(Color b) => new(b);
 
-        private Color value;
+        private readonly Color value;
         public ConstColor(Color f) => value = f;
-        public Color GetValue(bool rand, float time) => value;
+        public Color GetValue(float time, int? seed) => value;
 
     }
 
@@ -197,15 +219,21 @@ namespace Nutils.Particles
     {
         private readonly Color min;
         private readonly Color max;
-        private Color randValue;
         private readonly bool useLerp;
-        public UniformColor(Color min, Color max,bool useLerp = false) => (this.min, this.max, randValue, this.useLerp) = (min, max, Color.Lerp(min, max, 0.5f), useLerp);
+        public UniformColor(Color min, Color max,bool useLerp = false) => (this.min, this.max,  this.useLerp) = (min, max, useLerp);
 
-        public Color GetValue(bool rand, float time)
+        public Color GetValue(float time, int? seed)
         {
-            if (rand)
-                return randValue = useLerp ? Color.Lerp(min,max,Random.value) : KuyoCustom.RandomRange(min, max);
-            return randValue;
+            if (seed != null)
+            {
+                var state = Random.state;
+                Random.InitState(seed.Value);
+                Color re = useLerp ? Color.Lerp(min, max, Random.value) : KuyoCustom.RandomRange(min, max);
+                Random.state = state;
+                return re;
+            }
+            
+            return useLerp ? Color.Lerp(min,max,Random.value) : KuyoCustom.RandomRange(min, max);
         }
 
     }
@@ -214,7 +242,7 @@ namespace Nutils.Particles
     {
         private readonly Func<float, Color> curveOutput;
         public ConstCurveColor(Func<float, Color> curveOutput) => this.curveOutput = curveOutput;
-        public Color GetValue(bool rand, float time)
+        public Color GetValue(float time, int? seed)
         {
             return curveOutput(time);
         }
@@ -224,15 +252,21 @@ namespace Nutils.Particles
     {
         private readonly Func<float, Color> curveOutputA;
         private readonly Func<float, Color> curveOutputB;
-        private float randValue = 0.5f;
+
 
         public UniformCurveColor(Func<float, Color> curveOutputA, Func<float, Color> curveOutputB)
             => (this.curveOutputA, this.curveOutputB) = (curveOutputA, curveOutputB);
-        public Color GetValue(bool rand, float time)
+        public Color GetValue(float time, int? seed)
         {
-            if (rand)
-                randValue = Random.value;
-            return Color.Lerp(curveOutputA(time), curveOutputB(time), randValue);
+            if (seed != null)
+            {
+                var state = Random.state;
+                Random.InitState(seed.Value);
+                var re = Color.Lerp(curveOutputA(time), curveOutputB(time), Random.value);
+                Random.state = state;
+                return re;
+            }
+            return Color.Lerp(curveOutputA(time), curveOutputB(time), Random.value);
         }
     }
 
